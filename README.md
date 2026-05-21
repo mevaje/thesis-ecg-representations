@@ -7,7 +7,7 @@ Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG r
 * `tables/`: Exported summary and statistical tables.
 
 ## Data Setup
-Because the raw datasets and .RData object are too large for GitHub, they are hosted externally. 
+Raw datasets and .RData object are too large for GitHub, they are hosted externally. 
 To run these scripts locally:
 1. Download the `data_loaded.RData` file from [**THIS LINK**](https://drive.google.com/drive/folders/1K5key7G69zg6lzvmokHkGKIs5FWoAJO6?usp=sharing).
 2. Place the downloaded file inside the `data/` folder on your computer.
