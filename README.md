@@ -1,6 +1,4 @@
 # thesis-ecg-representations
-# thesis-ecg-representations
-
 Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG representation matrices extracted from a frozen 1D-CNN.
 
 ## Project Structure
