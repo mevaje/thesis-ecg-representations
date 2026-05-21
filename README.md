@@ -1,2 +1,17 @@
 # thesis-ecg-representations
-Analyzing ECG representations for my thesis. Contains R code, generated figures, and statistical tables.
+# thesis-ecg-representations
+
+Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG representation matrices extracted from a frozen 1D-CNN.
+
+## Project Structure
+* `R/`: Contains R scripts for analysis (EDA, Descriptive Statistics, RSA).
+* `data/`: Directory for input data.
+* `figures/`: Saved diagnostic and data plots.
+* `tables/`: Exported summary and statistical tables.
+
+## Data Setup
+Because the raw .RData object is too large for GitHub, it is hosted externally. 
+To run these scripts locally:
+1. Download the `data_loaded.RData` file from [**THIS LINK**](https://drive.google.com/drive/folders/1K5key7G69zg6lzvmokHkGKIs5FWoAJO6?usp=sharing)).
+2. Place the downloaded file inside the `data/` folder on your computer.
+3. Open the RStudio project and run the scripts in order.
