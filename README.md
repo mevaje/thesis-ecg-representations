@@ -3,7 +3,6 @@ Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG r
 
 ## Project Structure
 * `R/`: Contains R scripts for analysis (EDA, Descriptive Statistics, RSA).
-* `data/`: Directory for input data.
 * `figures/`: Saved diagnostic and data plots.
 * `tables/`: Exported summary and statistical tables.
 
