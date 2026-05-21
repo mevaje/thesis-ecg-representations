@@ -54,6 +54,7 @@ CLASS_COLOURS <- c(
 # 1. Load data
 # -----------------------------------------------------------------------------
 
+# Link to download .RData object is in the README section of this repository
 # Assuming RData object and script match current work directory
 
 load(here("data", "data_loaded.RData"))
