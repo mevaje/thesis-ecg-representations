@@ -3,8 +3,7 @@ Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG r
 
 ## Project Structure
 * `R/`: Contains R scripts for analysis (EDA, Descriptive Statistics, RSA).
-* `figures/`: Saved diagnostic and data plots.
-* `tables/`: Exported summary and statistical tables.
+* `session_info.txt/`: Includes the R version, my operating system and the exact version number of every package that was loaded.
 
 ## Data Setup
 Raw datasets and .RData object are too large for GitHub, they are hosted externally. 
