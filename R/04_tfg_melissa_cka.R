@@ -289,5 +289,3 @@ saveRDS(cka_global,         here("cka_global.rds"))
 saveRDS(cka_global_summary, here("cka_global_summary.rds"))
 saveRDS(cka_per_class,      here("cka_per_class.rds"))
 saveRDS(cka_matrix_df,      here("cka_matrix_df.rds"))
-
-message("Results saved. Figures written to figures/")
