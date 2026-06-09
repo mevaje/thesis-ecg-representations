@@ -69,9 +69,10 @@ feat_syn  <- as.matrix(df_syn[,  seq_len(N_FEATURES)])
 feat_real <- as.matrix(df_real[, seq_len(N_FEATURES)])
 
 # Class label vectors (integer 0-6)
-class_aug  <- df_aug$class_label
-class_syn  <- df_syn$class_label
-class_real <- df_real$class_label
+# Column V257 is the last column and contains the arrhythmia class (0-6)
+class_aug  <- df_aug$V257
+class_syn  <- df_syn$V257
+class_real <- df_real$V257
 
 # Class label vectors as ordered factor with named levels
 class_aug_f  <- factor(CLASS_LABELS[as.character(class_aug)],
@@ -297,6 +298,24 @@ build_pca_scatter_df <- function(pca_obj, class_factor, dataset_name) {
   )
 }
 
+# PCA sign is arbitrary: align PC1 and PC2 of synthetic and real (reference)
+# to real (augmented) by comparing the leading rotation vectors.
+# A negative dot product between corresponding eigenvectors means the axis
+# points in the opposite direction, so we flip the scores for that component.
+# This is purely cosmetic for the scatter plot; no metric is affected.
+align_pca_signs <- function(pca_ref, pca_target) {
+  for (j in 1:2) {
+    if (sum(pca_ref$pca$rotation[, j] * pca_target$pca$rotation[, j]) < 0) {
+      pca_target$pca$x[, j]        <- -pca_target$pca$x[, j]
+      pca_target$pca$rotation[, j] <- -pca_target$pca$rotation[, j]
+    }
+  }
+  pca_target
+}
+
+pca_syn  <- align_pca_signs(pca_aug, pca_syn)
+pca_real <- align_pca_signs(pca_aug, pca_real)
+
 scatter_aug  <- build_pca_scatter_df(pca_aug,  class_aug_f,  "Real (augmented)")
 scatter_syn  <- build_pca_scatter_df(pca_syn,  class_syn_f,  "Synthetic")
 scatter_real <- build_pca_scatter_df(pca_real, class_real_f, "Real (reference)")
@@ -424,7 +443,7 @@ stats_summary <- tibble(
 ) |>
   mutate(across(where(is.double), \(x) round(x, 4)))
 
-# Clean printed table for console inspection
+
 View(stats_summary)
 
 
