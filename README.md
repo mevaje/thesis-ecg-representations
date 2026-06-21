@@ -2,8 +2,8 @@
 Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG representation matrices extracted from a frozen 1D-CNN.
 
 ## Project Structure
-* `R/`: Contains R scripts for analysis (EDA, Descriptive Statistics, RSA) and a txt file with the session info.
-* `session_info.txt/`: Includes the R version, my operating system and the exact version number of every package that was loaded.
+*`R/`: Contains R scripts for analysis (EAR, Descriptive Statistics, RSA) and a txt file with the session info.
+*`figures/`: Contains the figures related to the analysis in this thesis.
 
 ## Data Setup
 Raw datasets and .RData object are too large for GitHub, they are hosted externally. 
