@@ -512,9 +512,34 @@ stratified_subsample_idx <- function(class_vector, total_n,
   classes      <- sort(unique(class_vector))
   class_counts <- table(class_vector)[as.character(classes)]
   
-  proportional <- round(total_n * class_counts / sum(class_counts))
-  n_per_class  <- pmax(proportional, min_per_class)
+  # Proportional allocation with a minimum floor per class
+  proportional <- total_n * class_counts / sum(class_counts)
+  n_per_class  <- pmax(floor(proportional), min_per_class)
   n_per_class  <- pmin(n_per_class, class_counts)
+  
+  # Largest-remainder method: distribute any shortfall/excess from rounding
+  # so the total exactly equals total_n, rather than approximately.
+  shortfall <- total_n - sum(n_per_class)
+  if (shortfall > 0) {
+    # Classes with room to grow, ranked by largest fractional remainder
+    remainder   <- proportional - floor(proportional)
+    can_grow    <- which(n_per_class < class_counts)
+    grow_order  <- can_grow[order(remainder[can_grow], decreasing = TRUE)]
+    for (i in seq_len(min(shortfall, length(grow_order)))) {
+      cl <- grow_order[i]
+      n_per_class[cl] <- n_per_class[cl] + 1
+    }
+  } else if (shortfall < 0) {
+    # Should not normally occur given floor() above, but guard anyway
+    can_shrink  <- which(n_per_class > min_per_class)
+    shrink_order <- can_shrink[order(n_per_class[can_shrink], decreasing = TRUE)]
+    for (i in seq_len(min(-shortfall, length(shrink_order)))) {
+      cl <- shrink_order[i]
+      n_per_class[cl] <- n_per_class[cl] - 1
+    }
+  }
+  
+  stopifnot(sum(n_per_class) == total_n)
   
   unlist(lapply(classes, function(cl) {
     rows <- which(class_vector == cl)
