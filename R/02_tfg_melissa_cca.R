@@ -2,125 +2,153 @@
 # Canonical Correlation Analysis (CCA)
 # TFG - Grau en Estadística, UB/UPC
 # Author: Melissa Vargas Jerez
-# Description: Computes CCA between the real (augmented) and synthetic
-#              representation matrices extracted from the frozen 1D-CNN.
-#              Follows what described in the Methodology Section of the thesis.
+# Description: Computes CCA along the four-axis comparison framework
+#              (real vs. augmented, augmented vs. synthetic; each overall
+#              and per arrhythmia class), as described in the Methodology
+#              chapter of the thesis.
 # =============================================================================
 
 library(here)
 library(tibble)
+library(dplyr)
 
 # -----------------------------------------------------------------------------
 # 1. Load data
 # -----------------------------------------------------------------------------
-# Both matrices are the N = 3,000 subsamples produced by 01_tfg_melissa_eda.R,
-# drawn from the same-sized primary matrices (N = 18,027 each) so that all
-# six similarity measures operate on identical observations.
+# All three matrices are the N = 3,000 (stratified for real) subsamples
+# produced by 01_tfg_melissa_ear.R, so that all six similarity measures
+# operate on identical observations.
 
-feat_aug <- readRDS(here("feat_aug_3k.rds"))   # 3000 x 256, real (augmented)
-feat_syn <- readRDS(here("feat_syn_3k.rds"))   # 3000 x 256, synthetic
+feat_real  <- readRDS(here("feat_real_3k.rds"))    # 3000 x 256, real (reference)
+feat_aug   <- readRDS(here("feat_aug_3k.rds"))      # 3000 x 256, real (augmented)
+feat_syn   <- readRDS(here("feat_syn_3k.rds"))      # 3000 x 256, synthetic
 
-N <- nrow(feat_aug)
+class_real <- readRDS(here("class_real_3k.rds"))    # factor, length 3000
+class_aug  <- readRDS(here("class_aug_3k.rds"))     # factor, length 3000
+class_syn  <- readRDS(here("class_syn_3k.rds"))     # factor, length 3000
+
 D <- ncol(feat_aug)
-
-stopifnot(nrow(feat_syn) == N, ncol(feat_syn) == D)
-
-# -----------------------------------------------------------------------------
-# 2. Preprocessing: column-wise mean-centring
-# -----------------------------------------------------------------------------
-
-R  <- sweep(feat_aug, 2, colMeans(feat_aug), "-")
-Rp <- sweep(feat_syn, 2, colMeans(feat_syn), "-")
+stopifnot(ncol(feat_real) == D, ncol(feat_syn) == D)
 
 # -----------------------------------------------------------------------------
-# 3. Covariance matrices
-# Sigma_RR  = (1/N) R'R
-# Sigma_RpRp = (1/N) R''R'
-# Sigma_RRp = (1/N) R'R'
+# 2. Core CCA function
+#    Computes the full canonical correlation sequence and m_CCA between two
+#    representation matrices, following the closed-form SVD solution.
 # -----------------------------------------------------------------------------
 
-Sigma_RR   <- crossprod(R)  / N          # D x D
-Sigma_RpRp <- crossprod(Rp) / N          # D x D
-Sigma_RRp  <- crossprod(R, Rp) / N       # D x D
-
-# -----------------------------------------------------------------------------
-# 4. Symmetric matrix square root inverse via eigendecomposition
-#    For a PSD matrix A = Q diag(lambda) Q',
-#    A^{-1/2} = Q diag(1/sqrt(lambda)) Q'
-#    A small ridge is added for numerical stability before inversion.
-# -----------------------------------------------------------------------------
-
-mat_inv_sqrt <- function(A, ridge = 1e-8) {
-  eig <- eigen(A, symmetric = TRUE)
-  # Clamp tiny/negative eigenvalues produced by floating-point error
-  d   <- pmax(eig$values, 0)
-  d_inv_sqrt <- ifelse(d > ridge, 1 / sqrt(d), 0)
-  eig$vectors %*% diag(d_inv_sqrt) %*% t(eig$vectors)
+compute_cca <- function(feat_X, feat_Y) {
+  
+  N <- nrow(feat_X)
+  stopifnot(nrow(feat_Y) == N)
+  
+  # -- Preprocessing: column-wise mean-centring --
+  X <- sweep(feat_X, 2, colMeans(feat_X), "-")
+  Y <- sweep(feat_Y, 2, colMeans(feat_Y), "-")
+  
+  # -- Covariance matrices --
+  Sigma_XX <- crossprod(X) / N
+  Sigma_YY <- crossprod(Y) / N
+  Sigma_XY <- crossprod(X, Y) / N
+  
+  # -- Symmetric matrix inverse square root via eigendecomposition --
+  mat_inv_sqrt <- function(A, ridge = 1e-8) {
+    eig <- eigen(A, symmetric = TRUE)
+    d   <- pmax(eig$values, 0)
+    d_inv_sqrt <- ifelse(d > ridge, 1 / sqrt(d), 0)
+    eig$vectors %*% diag(d_inv_sqrt) %*% t(eig$vectors)
+  }
+  
+  Sigma_XX_inv_sqrt <- mat_inv_sqrt(Sigma_XX)
+  Sigma_YY_inv_sqrt <- mat_inv_sqrt(Sigma_YY)
+  
+  # -- Whitened cross-covariance and SVD --
+  M     <- Sigma_XX_inv_sqrt %*% Sigma_XY %*% Sigma_YY_inv_sqrt
+  svd_M <- svd(M)
+  
+  canonical_correlations <- pmin(pmax(svd_M$d, 0), 1)
+  m_CCA <- mean(canonical_correlations)
+  
+  list(
+    m_CCA                   = m_CCA,
+    canonical_correlations  = canonical_correlations,
+    N                       = N,
+    D                       = ncol(feat_X)
+  )
 }
 
-Sigma_RR_inv_sqrt   <- mat_inv_sqrt(Sigma_RR)
-Sigma_RpRp_inv_sqrt <- mat_inv_sqrt(Sigma_RpRp)
-
 # -----------------------------------------------------------------------------
-# 5. Whitened cross-covariance matrix and its SVD
-#    M = Sigma_RR^{-1/2} Sigma_RRp Sigma_RpRp^{-1/2}
-#    Singular values of M are the canonical correlations rho_1 >= ... >= rho_D
-#    Canonical weight vectors:
-#      a_i = Sigma_RR^{-1/2}   u_i
-#      b_i = Sigma_RpRp^{-1/2} v_i
+# 3. Axis 1 and 3: overall comparisons
+#    Axis 1: Real (reference) vs. Augmented
+#    Axis 3: Augmented vs. Synthetic
 # -----------------------------------------------------------------------------
 
-M   <- Sigma_RR_inv_sqrt %*% Sigma_RRp %*% Sigma_RpRp_inv_sqrt
-
-svd_M <- svd(M)
-
-canonical_correlations <- svd_M$d          # length D, ordered desc
-A <- Sigma_RR_inv_sqrt   %*% svd_M$u       # D x D canonical weights for R
-B <- Sigma_RpRp_inv_sqrt %*% svd_M$v       # D x D canonical weights for Rp
-
-# Clamp numerical noise, correlations must lie in [0, 1]
-canonical_correlations <- pmin(pmax(canonical_correlations, 0), 1)
+cca_axis1_overall <- compute_cca(feat_real, feat_aug)
+cca_axis3_overall <- compute_cca(feat_aug,  feat_syn)
 
 # -----------------------------------------------------------------------------
-# 6. Score
-#    m_CCA = (1/D) * sum_{i=1}^{D} rho_i
+# 4. Axis 2 and 4: per-class comparisons
+#    For each arrhythmia class, CCA is computed only on the patients of that
+#    class within the relevant pair of matrices.
 # -----------------------------------------------------------------------------
 
-m_CCA <- mean(canonical_correlations)
+compute_cca_per_class <- function(feat_X, class_X, feat_Y, class_Y) {
+  classes <- levels(class_X)
+  results <- lapply(classes, function(cl) {
+    idx_X <- which(class_X == cl)
+    idx_Y <- which(class_Y == cl)
+    n_use <- min(length(idx_X), length(idx_Y))
+    # Use the same number of observations from each class in both matrices,
+    # since CCA requires equal N between the two compared matrices.
+    res <- compute_cca(feat_X[idx_X[seq_len(n_use)], , drop = FALSE],
+                       feat_Y[idx_Y[seq_len(n_use)], , drop = FALSE])
+    tibble(Class = cl, N = res$N, m_CCA = res$m_CCA)
+  })
+  bind_rows(results)
+}
 
-cca_summary <- tibble(
-  Metric = c("m_CCA (mean canonical correlation)",
-             "rho_1 (maximum)",
-             "rho_D (minimum)",
-             "Canonical dimensions (D)"),
-  Value  = c(round(m_CCA, 6),
-             round(canonical_correlations[1], 6),
-             round(canonical_correlations[D], 6),
-             D)
+cca_axis2_per_class <- compute_cca_per_class(feat_real, class_real,
+                                             feat_aug,  class_aug)
+
+cca_axis4_per_class <- compute_cca_per_class(feat_aug, class_aug,
+                                             feat_syn, class_syn)
+
+# -----------------------------------------------------------------------------
+# 5. Summary tables
+# -----------------------------------------------------------------------------
+
+# Overall scores across both axes (1 and 3)
+cca_overall_summary <- tibble(
+  Axis        = c("1: Real vs. Augmented", "3: Augmented vs. Synthetic"),
+  m_CCA       = round(c(cca_axis1_overall$m_CCA, cca_axis3_overall$m_CCA), 6),
+  rho_1       = round(c(cca_axis1_overall$canonical_correlations[1],
+                        cca_axis3_overall$canonical_correlations[1]), 6),
+  rho_D       = round(c(cca_axis1_overall$canonical_correlations[D],
+                        cca_axis3_overall$canonical_correlations[D]), 6)
 )
 
-print(cca_summary)
-# -----------------------------------------------------------------------------
-# 7. Diagnostic: distribution of canonical correlations
-# -----------------------------------------------------------------------------
+print(cca_overall_summary)
 
+# Per-class scores, both axes combined into one tidy table
+cca_per_class_summary <- bind_rows(
+  cca_axis2_per_class |> mutate(Axis = "2: Real vs. Augmented", .before = 1),
+  cca_axis4_per_class |> mutate(Axis = "4: Augmented vs. Synthetic", .before = 1)
+) |>
+  mutate(m_CCA = round(m_CCA, 6))
 
-print(round(quantile(canonical_correlations,
-                     probs = c(0, 0.25, 0.50, 0.75, 1)), 6))
+print(cca_per_class_summary)
 
 # -----------------------------------------------------------------------------
-# 8. Save results
+# 6. Save results
 # -----------------------------------------------------------------------------
 
 cca_results <- list(
-  canonical_correlations = canonical_correlations,  # vector of length D
-  m_CCA                  = m_CCA,
-  A                      = A,                       # canonical weight matrix for R
-  B                      = B,                       # canonical weight matrix for Rp
-  M                      = M,                       # whitened cross-covariance
-  N                      = N,
-  D                      = D
+  axis1_overall        = cca_axis1_overall,
+  axis2_per_class      = cca_axis2_per_class,
+  axis3_overall        = cca_axis3_overall,
+  axis4_per_class      = cca_axis4_per_class,
+  cca_overall_summary  = cca_overall_summary,
+  cca_per_class_summary = cca_per_class_summary,
+  D                    = D
 )
 
 saveRDS(cca_results, file = here("cca_results.rds"))
-
