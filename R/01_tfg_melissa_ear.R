@@ -493,3 +493,43 @@ saveRDS(feat_aug_3k,  file = here("feat_aug_3k.rds"))
 saveRDS(feat_syn_3k,  file = here("feat_syn_3k.rds"))
 saveRDS(class_aug_3k, file = here("class_aug_3k.rds"))
 saveRDS(class_syn_3k, file = here("class_syn_3k.rds"))
+
+# -----------------------------------------------------------------------------
+# Step 3. Stratified N = 3,000 subsample of the real reference dataset
+# -----------------------------------------------------------------------------
+# The real reference dataset is heavily imbalanced across classes (see Data
+# Description chapter), unlike the augmented and synthetic datasets which are
+# already approximately balanced. A simple random subsample would inherit
+# this imbalance and under-represent rare classes (e.g. SVTAC). A stratified
+# subsample is drawn instead, allocating observations to each class
+# proportionally to its share of the real dataset, with a minimum floor per
+# class so that even the rarest class retains adequate representation. This
+# subsample is required for comparison axes 1 and 2 (real vs. augmented,
+# overall and per class) in the four-axis comparison framework.
+
+stratified_subsample_idx <- function(class_vector, total_n,
+                                     min_per_class = 30L) {
+  classes      <- sort(unique(class_vector))
+  class_counts <- table(class_vector)[as.character(classes)]
+  
+  proportional <- round(total_n * class_counts / sum(class_counts))
+  n_per_class  <- pmax(proportional, min_per_class)
+  n_per_class  <- pmin(n_per_class, class_counts)
+  
+  unlist(lapply(classes, function(cl) {
+    rows <- which(class_vector == cl)
+    sample(rows, n_per_class[as.character(cl)])
+  }))
+}
+
+idx_real_3k <- stratified_subsample_idx(class_real, N_SUBSAMPLE)
+
+feat_real_3k  <- feat_real[idx_real_3k, ]
+class_real_3k <- class_real_f[idx_real_3k]
+
+stopifnot(ncol(feat_real_3k) == N_FEATURES)
+
+print(table(class_real_3k))
+
+saveRDS(feat_real_3k,  file = here("feat_real_3k.rds"))
+saveRDS(class_real_3k, file = here("class_real_3k.rds"))
