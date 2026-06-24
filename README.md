@@ -3,6 +3,7 @@ Repository for my Bachelor of Science in Statistics thesis (TFG) analyzing ECG r
 
 ## Project Structure
 *`R/`: Contains R scripts for analysis (EAR, Descriptive Statistics, RSA) and a txt file with the session info.
+
 *`figures/`: Contains the figures related to the analysis in this thesis.
 
 ## Data Setup
