@@ -128,7 +128,7 @@ plot_class_boxplot <- ggplot(norms_all,
                              aes(x = class, y = norm, fill = class)) +
   geom_boxplot(outlier.size = 0.6, outlier.alpha = 0.4, linewidth = 0.3) +
   scale_fill_manual(values = CLASS_COLOURS) +
-  facet_wrap(~dataset, ncol = 1, scales = "free_y") +
+  facet_wrap(~dataset, ncol = 1, scales = "fixed") +
   labs(
     title = "Distribution of patient representation norms by arrhythmia class",
     x     = "Arrhythmia class",
